@@ -1,0 +1,6 @@
+@cqtrailsclientcore_HostAddress = http://localhost:5139
+
+GET {{cqtrailsclientcore_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
