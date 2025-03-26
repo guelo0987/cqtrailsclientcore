@@ -18,6 +18,8 @@ public partial class Vehiculo
     public int Ano { get; set; }
 
     public bool? Disponible { get; set; }
+    
+    public int Price { get; set; }
 
     public virtual ICollection<VehiculosReservacione> VehiculosReservaciones { get; set; } = new List<VehiculosReservacione>();
 }
