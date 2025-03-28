@@ -27,14 +27,34 @@ public class CarritoController:ControllerBase
 
     //LoadUser cart    
     [HttpGet("cart/{userid}")]
-    public async  Task<IActionResult> GetCart(int userid)
+    public async Task<IActionResult> GetCart(int userid)
     {
-        var  carrito = await _db.Carrito.
-            Include(o => o.Usuario).
-            Where(o => o.usuario_id == userid).ToListAsync();
+        var carritos = await _db.Carrito
+            .Include(o => o.Usuario)
+            .Where(o => o.usuario_id == userid)
+            .ToListAsync();
 
+        if (carritos == null || !carritos.Any())
+        {
+            return NotFound("No se encontraron carritos para este usuario");
+        }
 
-        return Ok(carrito);
+        // Mapear a DTO para evitar exponer datos sensibles
+        var carritosDTO = carritos.Select(c => new CarritoDTO
+        {
+            Id = c.id,
+            FechaCreacion = c.fecha_creacion,
+            UsuarioId = c.usuario_id,
+            Usuario = c.Usuario != null ? new UsuarioBasicoDTO
+            {
+                IdUsuario = c.Usuario.IdUsuario,
+                Nombre = c.Usuario.Nombre,
+                Apellido = c.Usuario.Apellido,
+                Email = c.Usuario.Email
+            } : null
+        }).ToList();
+
+        return Ok(carritosDTO);
     }
     
     
@@ -44,6 +64,7 @@ public class CarritoController:ControllerBase
     {
         // Primero obtenemos el carrito del usuario
         var carrito = await _db.Carrito
+            .Include(c => c.Usuario)
             .Where(c => c.usuario_id == userid)
             .FirstOrDefaultAsync();
 
@@ -54,7 +75,7 @@ public class CarritoController:ControllerBase
 
         // Luego obtenemos los items de ese carrito
         var detalleCarrito = await _db.DetalleCarrito
-            .Include(o=>o.Vehiculo)
+            .Include(o => o.Vehiculo)
             .Where(d => d.CarritoId == carrito.id)
             .ToListAsync();
 
@@ -63,7 +84,31 @@ public class CarritoController:ControllerBase
             return NotFound("No se encontraron items en el carrito del usuario");
         }
 
-        return Ok(detalleCarrito);
+        // Mapear a DTO para evitar exponer datos sensibles
+        var detalleCarritoDTO = detalleCarrito.Select(d => new DetalleCarritoResponseDTO
+        {
+            Id = d.id,
+            CarritoId = d.CarritoId,
+            VehiculoId = d.VehiculoId,
+            Price = d.Price,
+            Cantidad = d.Cantidad,
+            FechaInicio = d.FechaInicio,
+            FechaFin = d.FechaFin,
+            SubTotal = d.SubTotal,
+            Total = d.Total,
+            Vehiculo = new VehiculoBasicoDTO
+            {
+                IdVehiculo = d.Vehiculo.IdVehiculo,
+                Placa = d.Vehiculo.Placa,
+                Modelo = d.Vehiculo.Modelo,
+                TipoVehiculo = d.Vehiculo.TipoVehiculo,
+                Capacidad = d.Vehiculo.Capacidad,
+                Ano = d.Vehiculo.Ano,
+                Price = d.Vehiculo.Price
+            }
+        }).ToList();
+
+        return Ok(detalleCarritoDTO);
     }
     
     

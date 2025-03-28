@@ -1,45 +1,67 @@
 using cqtrailsclientcore.Context;
+using cqtrailsclientcore.DTO;
 using cqtrailsclientcore.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
 namespace cqtrailsclientcore.Controllers;
 
-
-
 [ApiController]
 [Route("api/[controller]")]
-public class ReservacionesController:ControllerBase
+public class ReservacionesController : ControllerBase
 {
-
-
     private readonly MyDbContext _db;
 
     public ReservacionesController(MyDbContext db)
     {
-
         _db = db;
-
     }
-
-
-
 
     [HttpGet("MisReservaciones/{userid}")]
     public async Task<IActionResult> GetReservaciones(int userid)
     {
-        
+        var reservaciones = await _db.Reservaciones
+            .Include(o => o.IdUsuarioNavigation)
+            .Include(o => o.VehiculosReservaciones)
+                .ThenInclude(vr => vr.IdVehiculoNavigation)
+            .Where(o => o.IdUsuario == userid)
+            .ToListAsync();
 
-        var Reservaciones =
-            await _db.Reservaciones.
-                Include(o => o.IdUsuarioNavigation).
-                Where(o => o.IdUsuario == userid).ToListAsync();
+        // Mapear a DTO para evitar exponer datos sensibles
+        var reservacionesDTO = reservaciones.Select(r => new ReservacioneDTO
+        {
+            IdReservacion = r.IdReservacion,
+            IdUsuario = r.IdUsuario,
+            FechaInicio = r.FechaInicio,
+            FechaFin = r.FechaFin,
+            RutaPersonalizada = r.RutaPersonalizada,
+            RequerimientosAdicionales = r.RequerimientosAdicionales,
+            Estado = r.Estado,
+            FechaReservacion = r.FechaReservacion,
+            FechaConfirmacion = r.FechaConfirmacion,
+            Total = r.Total,
+            SubTotal = r.SubTotal,
+            Usuario = r.IdUsuarioNavigation != null ? new UsuarioBasicoDTO
+            {
+                IdUsuario = r.IdUsuarioNavigation.IdUsuario,
+                Nombre = r.IdUsuarioNavigation.Nombre,
+                Apellido = r.IdUsuarioNavigation.Apellido,
+                Email = r.IdUsuarioNavigation.Email
+            } : null,
+            Vehiculos = r.VehiculosReservaciones.Select(vr => new VehiculoReservacionDTO
+            {
+                IdVehiculo = vr.IdVehiculo,
+                Placa = vr.IdVehiculoNavigation.Placa,
+                Modelo = vr.IdVehiculoNavigation.Modelo,
+                TipoVehiculo = vr.IdVehiculoNavigation.TipoVehiculo,
+                Capacidad = vr.IdVehiculoNavigation.Capacidad,
+                Ano = vr.IdVehiculoNavigation.Ano,
+                EstadoAsignacion = vr.EstadoAsignacion
+            }).ToList()
+        }).ToList();
 
-        return Ok(Reservaciones);
-        
+        return Ok(reservacionesDTO);
     }
-    
-    
     
     [HttpPost]
     public async Task<IActionResult> HacerReservacion([FromBody] int userId)
@@ -83,8 +105,8 @@ public class ReservacionesController:ControllerBase
                 detallesCarrito.First().FechaFin.ToDateTime(TimeOnly.MinValue), 
                 DateTimeKind.Unspecified);
             
-            var subTotal = detallesCarrito.Sum(d => d.SubTotal); // Asegúrate de que DetalleCarrito tenga esta propiedad
-            var total = detallesCarrito.Sum(d => d.Total); // Asegúrate de que DetalleCarrito tenga esta propiedad
+            var subTotal = detallesCarrito.Sum(d => d.SubTotal);
+            var total = detallesCarrito.Sum(d => d.Total);
 
             // Crear la reservación
             var nuevaReservacion = new Reservacione
@@ -96,7 +118,6 @@ public class ReservacionesController:ControllerBase
                 Estado = "Pendiente",
                 Total = total,
                 SubTotal = subTotal
-                // Puedes agregar más campos según sea necesario
             };
 
             _db.Reservaciones.Add(nuevaReservacion);
@@ -110,7 +131,6 @@ public class ReservacionesController:ControllerBase
                     IdReservacion = nuevaReservacion.IdReservacion,
                     IdVehiculo = detalle.VehiculoId,
                     EstadoAsignacion = "Activa"
-                    // Puedes agregar más campos según sea necesario
                 };
 
                 _db.VehiculosReservaciones.Add(vehiculoReservacion);
@@ -121,22 +141,55 @@ public class ReservacionesController:ControllerBase
             
             await _db.SaveChangesAsync();
 
-            // Retornar la reservación creada con sus detalles
+            // Retornar la reservación creada con sus detalles (usando DTO)
             var reservacionCreada = await _db.Reservaciones
                 .Include(r => r.IdUsuarioNavigation)
                 .Include(r => r.VehiculosReservaciones)
                     .ThenInclude(vr => vr.IdVehiculoNavigation)
                 .FirstOrDefaultAsync(r => r.IdReservacion == nuevaReservacion.IdReservacion);
 
-            return Ok(reservacionCreada);
+            if (reservacionCreada == null)
+            {
+                return StatusCode(500, "Error al recuperar la reservación creada");
+            }
+
+            var reservacionDTO = new ReservacioneDTO
+            {
+                IdReservacion = reservacionCreada.IdReservacion,
+                IdUsuario = reservacionCreada.IdUsuario,
+                FechaInicio = reservacionCreada.FechaInicio,
+                FechaFin = reservacionCreada.FechaFin,
+                RutaPersonalizada = reservacionCreada.RutaPersonalizada,
+                RequerimientosAdicionales = reservacionCreada.RequerimientosAdicionales,
+                Estado = reservacionCreada.Estado,
+                FechaReservacion = reservacionCreada.FechaReservacion,
+                FechaConfirmacion = reservacionCreada.FechaConfirmacion,
+                Total = reservacionCreada.Total,
+                SubTotal = reservacionCreada.SubTotal,
+                Usuario = reservacionCreada.IdUsuarioNavigation != null ? new UsuarioBasicoDTO
+                {
+                    IdUsuario = reservacionCreada.IdUsuarioNavigation.IdUsuario,
+                    Nombre = reservacionCreada.IdUsuarioNavigation.Nombre,
+                    Apellido = reservacionCreada.IdUsuarioNavigation.Apellido,
+                    Email = reservacionCreada.IdUsuarioNavigation.Email
+                } : null,
+                Vehiculos = reservacionCreada.VehiculosReservaciones.Select(vr => new VehiculoReservacionDTO
+                {
+                    IdVehiculo = vr.IdVehiculo,
+                    Placa = vr.IdVehiculoNavigation.Placa,
+                    Modelo = vr.IdVehiculoNavigation.Modelo,
+                    TipoVehiculo = vr.IdVehiculoNavigation.TipoVehiculo,
+                    Capacidad = vr.IdVehiculoNavigation.Capacidad,
+                    Ano = vr.IdVehiculoNavigation.Ano,
+                    EstadoAsignacion = vr.EstadoAsignacion
+                }).ToList()
+            };
+
+            return Ok(reservacionDTO);
         }
         catch (Exception ex)
         {
             return StatusCode(500, $"Error interno del servidor: {ex.Message}");
         }
     }
-    
-    
-    
-    
 }
