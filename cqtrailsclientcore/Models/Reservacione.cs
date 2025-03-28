@@ -26,6 +26,10 @@ public partial class Reservacione
     public DateTime? FechaReservacion { get; set; }
 
     public DateTime? FechaConfirmacion { get; set; }
+    
+    public int Total { get; set; }
+    
+    public int SubTotal { get; set; }
 
     public virtual Empleado? IdEmpleadoNavigation { get; set; }
 

@@ -82,6 +82,9 @@ public class ReservacionesController:ControllerBase
             var fechaFin = DateTime.SpecifyKind(
                 detallesCarrito.First().FechaFin.ToDateTime(TimeOnly.MinValue), 
                 DateTimeKind.Unspecified);
+            
+            var subTotal = detallesCarrito.Sum(d => d.SubTotal); // Asegúrate de que DetalleCarrito tenga esta propiedad
+            var total = detallesCarrito.Sum(d => d.Total); // Asegúrate de que DetalleCarrito tenga esta propiedad
 
             // Crear la reservación
             var nuevaReservacion = new Reservacione
@@ -90,7 +93,9 @@ public class ReservacionesController:ControllerBase
                 FechaReservacion = fechaActual,
                 FechaInicio = fechaInicio,
                 FechaFin = fechaFin,
-                Estado = "Pendiente"
+                Estado = "Pendiente",
+                Total = total,
+                SubTotal = subTotal
                 // Puedes agregar más campos según sea necesario
             };
 

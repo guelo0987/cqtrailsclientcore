@@ -143,6 +143,8 @@ public partial class MyDbContext : DbContext
                 .HasForeignKey(d => d.IdReservacion)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("PreFacturas_IdReservacion_fkey");
+
+            entity.HasIndex(p => p.IdReservacion).IsUnique();
         });
 
         modelBuilder.Entity<Reservacione>(entity =>
