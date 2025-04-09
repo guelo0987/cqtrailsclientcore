@@ -76,6 +76,8 @@ public class CarritoController:ControllerBase
         // Luego obtenemos los items de ese carrito
         var detalleCarrito = await _db.DetalleCarrito
             .Include(o => o.Vehiculo)
+            .Include(o => o.CiudadInicio)
+            .Include(o => o.CiudadFin)
             .Where(d => d.CarritoId == carrito.id)
             .ToListAsync();
 
@@ -96,6 +98,8 @@ public class CarritoController:ControllerBase
             FechaFin = d.FechaFin,
             SubTotal = d.SubTotal,
             Total = d.Total,
+            CiudadInicioId = d.CiudadInicioId,
+            CiudadFinId = d.CiudadFinId,
             Vehiculo = new VehiculoBasicoDTO
             {
                 IdVehiculo = d.Vehiculo.IdVehiculo,
@@ -105,7 +109,19 @@ public class CarritoController:ControllerBase
                 Capacidad = d.Vehiculo.Capacidad,
                 Ano = d.Vehiculo.Ano,
                 Price = d.Vehiculo.Price
-            }
+            },
+            CiudadInicio = d.CiudadInicio != null ? new CiudadDTO
+            {
+                IdCiudad = d.CiudadInicio.IdCiudad,
+                Nombre = d.CiudadInicio.Nombre,
+                Estado = d.CiudadInicio.Estado
+            } : null,
+            CiudadFin = d.CiudadFin != null ? new CiudadDTO
+            {
+                IdCiudad = d.CiudadFin.IdCiudad,
+                Nombre = d.CiudadFin.Nombre,
+                Estado = d.CiudadFin.Estado
+            } : null
         }).ToList();
 
         return Ok(detalleCarritoDTO);
@@ -155,6 +171,8 @@ public class CarritoController:ControllerBase
                 itemExistente.Price = vehiculo.Price;
                 itemExistente.FechaInicio = detalleCarritoDto.FechaInicio;
                 itemExistente.FechaFin = detalleCarritoDto.FechaFin;
+                itemExistente.CiudadInicioId = detalleCarritoDto.CiudadInicioId;
+                itemExistente.CiudadFinId = detalleCarritoDto.CiudadFinId;
                 itemExistente.SubTotal = vehiculo.Price * detalleCarritoDto.Cantidad;
                 itemExistente.Total = itemExistente.SubTotal; // Puedes añadir lógica adicional para impuestos, descuentos, etc.
             }
@@ -169,6 +187,8 @@ public class CarritoController:ControllerBase
                     Price = vehiculo.Price,
                     FechaInicio = detalleCarritoDto.FechaInicio,
                     FechaFin = detalleCarritoDto.FechaFin,
+                    CiudadInicioId = detalleCarritoDto.CiudadInicioId,
+                    CiudadFinId = detalleCarritoDto.CiudadFinId,
                     SubTotal = vehiculo.Price * detalleCarritoDto.Cantidad,
                     Total = vehiculo.Price * detalleCarritoDto.Cantidad // Puedes añadir lógica adicional para impuestos, descuentos, etc.
                 };

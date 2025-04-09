@@ -88,6 +88,8 @@ public class ReservacionesController : ControllerBase
             // Obtener los items del carrito
             var detallesCarrito = await _db.DetalleCarrito
                 .Include(d => d.Vehiculo)
+                .Include(d => d.CiudadInicio)
+                .Include(d => d.CiudadFin)
                 .Where(d => d.CarritoId == carrito.id)
                 .ToListAsync();
 
@@ -96,14 +98,10 @@ public class ReservacionesController : ControllerBase
                 return NotFound("No hay items en el carrito para crear una reservación");
             }
 
-            // Convertir fechas UTC a fechas locales (sin información de zona horaria)
-            var fechaActual = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Unspecified);
-            var fechaInicio = DateTime.SpecifyKind(
-                detallesCarrito.First().FechaInicio.ToDateTime(TimeOnly.MinValue), 
-                DateTimeKind.Unspecified);
-            var fechaFin = DateTime.SpecifyKind(
-                detallesCarrito.First().FechaFin.ToDateTime(TimeOnly.MinValue), 
-                DateTimeKind.Unspecified);
+            // Convertir fechas a UTC para que PostgreSQL pueda manejarlas correctamente
+            var fechaActual = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Utc);
+            var fechaInicio = DateTime.SpecifyKind(detallesCarrito.First().FechaInicio, DateTimeKind.Utc);
+            var fechaFin = DateTime.SpecifyKind(detallesCarrito.First().FechaFin, DateTimeKind.Utc);
             
             var subTotal = detallesCarrito.Sum(d => d.SubTotal);
             var total = detallesCarrito.Sum(d => d.Total);
@@ -117,7 +115,10 @@ public class ReservacionesController : ControllerBase
                 FechaFin = fechaFin,
                 Estado = "Pendiente",
                 Total = total,
-                SubTotal = subTotal
+                SubTotal = subTotal,
+                // Puedes agregar los IDs de ciudades si necesitas almacenarlos en la reservación
+                // CiudadOrigenId = detallesCarrito.First().CiudadInicioId,
+                // CiudadDestinoId = detallesCarrito.First().CiudadFinId
             };
 
             _db.Reservaciones.Add(nuevaReservacion);

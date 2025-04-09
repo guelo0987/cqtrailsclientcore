@@ -15,13 +15,19 @@ public class DetalleCarritoResponseDTO
     public int VehiculoId { get; set; }
     public int Price { get; set; }
     public int Cantidad { get; set; }
-    public DateOnly FechaInicio { get; set; }
-    public DateOnly FechaFin { get; set; }
+    public DateTime FechaInicio { get; set; }
+    public DateTime FechaFin { get; set; }
     public int SubTotal { get; set; }
     public int Total { get; set; }
+    public int CiudadInicioId { get; set; }
+    public int CiudadFinId { get; set; }
     
     // Información básica del vehículo
     public VehiculoBasicoDTO Vehiculo { get; set; }
+    
+    // Información básica de las ciudades
+    public CiudadDTO CiudadInicio { get; set; }
+    public CiudadDTO CiudadFin { get; set; }
 }
 
 public class VehiculoBasicoDTO

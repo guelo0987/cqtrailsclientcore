@@ -289,6 +289,19 @@ public partial class MyDbContext : DbContext
             .HasOne(d => d.Carrito)
             .WithMany()
             .HasForeignKey(d => d.CarritoId);
+            
+        // Add foreign key relationships for ciudades
+        modelBuilder.Entity<DetalleCarrito>()
+            .HasOne(d => d.CiudadInicio)
+            .WithMany()
+            .HasForeignKey(d => d.CiudadInicioId)
+            .OnDelete(DeleteBehavior.Restrict);
+            
+        modelBuilder.Entity<DetalleCarrito>()
+            .HasOne(d => d.CiudadFin)
+            .WithMany()
+            .HasForeignKey(d => d.CiudadFinId)
+            .OnDelete(DeleteBehavior.Restrict);
 
         modelBuilder.Entity<DetalleCarrito>()
             .ToTable("DetalleCarrito", "miguel");
