@@ -12,4 +12,10 @@ public class UsuarioDTO
 
     public string Apellido { get; set; } = null!;
     
+    public string NombreEmpresa { get; set; } = null!; 
+    public string ContactoEmail { get; set; } = null!;
+    public string ContactoTelefono { get; set; } = null!;
 }
+    
+
+

@@ -20,6 +20,13 @@ public partial class Vehiculo
     public bool? Disponible { get; set; }
     
     public int Price { get; set; }
+    
+    public string? Image_url { get; set; }
+    
+    public string? Transmision { get; set; }
+    
+    public string? Combustible { get; set; }
+    
 
     public virtual ICollection<VehiculosReservacione> VehiculosReservaciones { get; set; } = new List<VehiculosReservacione>();
 }

@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 
+
 namespace cqtrailsclientcore.Controllers;
 
 
@@ -74,65 +75,78 @@ public class AuthController:ControllerBase
     
     
     
-    [HttpPost("register")]
-    public async Task<IActionResult> Register([FromBody] UsuarioDTO registerRequest)
+ 
+[HttpPost("register")]
+public async Task<IActionResult> Register([FromBody] UsuarioDTO registerRequest)
+{
+    // Validar que no exista el usuario
+    if (_db.Usuarios.Any(u => u.Email == registerRequest.Email))
     {
-        if (_db.Usuarios.Any(u => u.Email == registerRequest.Email))
-        {
-            return Conflict("El correo ya está registrado");
-        }
-
-        var rol = _db.Roles.FirstOrDefault(r => r.NombreRol == "Cliente");
-        if (rol == null)
-        {
-            return StatusCode(500, "Error en la configuración del servidor");
-        }
-    
-        var usuario = new Usuario()
-        {
-            Nombre = registerRequest.Nombre,
-            Email = registerRequest.Email,
-            PasswordHash = registerRequest.PasswordHash, 
-            Apellido = registerRequest.Apellido,
-            IdRol = 1,
-            Activo = true
-        };
-
-        _db.Usuarios.Add(usuario);
-        await _db.SaveChangesAsync(); // Guarda el usuario para obtener su ID
-
-        // Crear el carrito con el ID del usuario
-        var carrito = new Carrito()
-        {
-            fecha_creacion = DateTime.UtcNow,
-            usuario_id = usuario.IdUsuario // Asigna el ID generado
-        };
-
-        _db.Carrito.Add(carrito); // Añade el carrito al contexto
-        await _db.SaveChangesAsync(); // Guarda el carrito
-
-        // Resto del código para generar el token...
-    
-        var claims = new[]
-        {
-            new Claim(JwtRegisteredClaimNames.Sub, Environment.GetEnvironmentVariable("JWT_SUBJECT")),
-            new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
-            new Claim("Id", usuario.IdUsuario.ToString()),
-            new Claim(ClaimTypes.Role, rol.NombreRol)
-        };
-
-        var usuarioDTO = new UsuarioDTO()
-        {
-            Nombre = registerRequest.Nombre,
-            Email = registerRequest.Email,
-            Apellido = registerRequest.Apellido,
-        };
-
-        return GenerateToken(claims, usuarioDTO, rol.NombreRol);
+        return Conflict("El correo ya está registrado");
     }
 
+    var rol = _db.Roles.FirstOrDefault(r => r.NombreRol == "Cliente");
+    if (rol == null)
+    {
+        return StatusCode(500, "Error en la configuración del servidor");
+    }
+    
+    // Crear y guardar el usuario
+    var usuario = new Usuario()
+    {
+        Nombre = registerRequest.Nombre,
+        Apellido = registerRequest.Apellido,
+        Email = registerRequest.Email,
+        PasswordHash = registerRequest.PasswordHash, 
+        IdRol = 1, // Verifica que el IdRol sea correcto o asigna el id de "Cliente"
+        Activo = true
+    };
 
+    _db.Usuarios.Add(usuario);
+    await _db.SaveChangesAsync(); // Guarda el usuario y genera el IdUsuario
 
+    // Crear el carrito usando el Id del usuario
+    var carrito = new Carrito()
+    {
+        fecha_creacion = DateTime.UtcNow,
+        usuario_id = usuario.IdUsuario // Se asigna el ID generado al usuario
+    };
+
+    _db.Carrito.Add(carrito);
+    await _db.SaveChangesAsync();
+
+    // Crear la empresa asociada a este registro
+    var empresa = new Empresa()
+    {
+        Nombre = registerRequest.NombreEmpresa,
+        ContactoEmail = registerRequest.ContactoEmail,
+        ContactoTelefono = registerRequest.ContactoTelefono,
+        FechaRegistro = DateTime.UtcNow, // Se asigna la fecha actual
+        Activo = true
+    };
+
+    _db.Empresas.Add(empresa);
+    await _db.SaveChangesAsync();
+
+    // Resto del código para la generación del token
+    var claims = new[]
+    {
+        new Claim(JwtRegisteredClaimNames.Sub, Environment.GetEnvironmentVariable("JWT_SUBJECT")),
+        new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
+        new Claim("Id", usuario.IdUsuario.ToString()),
+        new Claim(ClaimTypes.Role, rol.NombreRol)
+    };
+
+    // Opcionalmente se puede devolver también la información de la empresa
+    var usuarioResponse = new UsuarioDTO()
+    {
+        Nombre = registerRequest.Nombre,
+        Apellido = registerRequest.Apellido,
+        Email = registerRequest.Email
+    };
+
+    return GenerateToken(claims, usuarioResponse, rol.NombreRol);
+}
 
 
 

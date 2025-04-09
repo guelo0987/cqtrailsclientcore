@@ -87,7 +87,7 @@ public partial class MyDbContext : DbContext
             entity.Property(e => e.ContactoTelefono).HasMaxLength(20);
             entity.Property(e => e.FechaRegistro)
                 .HasDefaultValueSql("CURRENT_TIMESTAMP")
-                .HasColumnType("timestamp without time zone");
+                .HasColumnType("timestamp with time zone");
             entity.Property(e => e.Nombre).HasMaxLength(20);
         });
 
