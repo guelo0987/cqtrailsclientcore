@@ -17,6 +17,14 @@ public class ReservacionesController : ControllerBase
         _db = db;
     }
 
+    // Helper method to normalize DateTime values for PostgreSQL
+    private DateTime NormalizeDateTime(DateTime dateTime)
+    {
+        return new DateTime(dateTime.Year, dateTime.Month, dateTime.Day, 
+                           dateTime.Hour, dateTime.Minute, dateTime.Second, 
+                           dateTime.Millisecond, DateTimeKind.Unspecified);
+    }
+
     [HttpGet("MisReservaciones/{userid}")]
     public async Task<IActionResult> GetReservaciones(int userid)
     {
@@ -98,10 +106,10 @@ public class ReservacionesController : ControllerBase
                 return NotFound("No hay items en el carrito para crear una reservación");
             }
 
-            // Convertir fechas a UTC para que PostgreSQL pueda manejarlas correctamente
-            var fechaActual = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Utc);
-            var fechaInicio = DateTime.SpecifyKind(detallesCarrito.First().FechaInicio, DateTimeKind.Utc);
-            var fechaFin = DateTime.SpecifyKind(detallesCarrito.First().FechaFin, DateTimeKind.Utc);
+            // Usar fechas normalizadas (sin información de Kind) para PostgreSQL
+            var fechaActual = NormalizeDateTime(DateTime.Now);
+            var fechaInicio = NormalizeDateTime(detallesCarrito.First().FechaInicio);
+            var fechaFin = NormalizeDateTime(detallesCarrito.First().FechaFin);
             
             var subTotal = detallesCarrito.Sum(d => d.SubTotal);
             var total = detallesCarrito.Sum(d => d.Total);

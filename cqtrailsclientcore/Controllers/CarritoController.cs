@@ -297,6 +297,59 @@ public class CarritoController:ControllerBase
             return StatusCode(500, $"Error interno del servidor: {ex.Message}");
         }
     }
+    
+    
+    
+    // Actualizar la fecha de inicio de un item en el carrito
+    [HttpPut("update-fecha-inicio/{detalleId}")]
+    public async Task<IActionResult> UpdateFechaInicio(int detalleId, [FromBody] UpdateFechaDTO updateFechaDto)
+    {
+        try
+        {
+            // Buscar el detalle del carrito por su Id
+            var detalle = await _db.DetalleCarrito.FindAsync(detalleId);
+            if (detalle == null)
+            {
+                return NotFound("Detalle del carrito no encontrado.");
+            }
+
+            // Actualizar la fecha de inicio con el nuevo valor recibido
+            detalle.FechaInicio = updateFechaDto.NewFecha;
+            await _db.SaveChangesAsync();
+
+            return Ok(new { Message = "Fecha de inicio actualizada exitosamente." });
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, $"Error interno del servidor: {ex.Message}");
+        }
+    }
+
+// Actualizar la fecha de fin de un item en el carrito
+    [HttpPut("update-fecha-fin/{detalleId}")]
+    public async Task<IActionResult> UpdateFechaFin(int detalleId, [FromBody] UpdateFechaDTO updateFechaDto)
+    {
+        try
+        {
+            // Buscar el detalle del carrito por su Id
+            var detalle = await _db.DetalleCarrito.FindAsync(detalleId);
+            if (detalle == null)
+            {
+                return NotFound("Detalle del carrito no encontrado.");
+            }
+
+            // Actualizar la fecha de fin con el nuevo valor recibido
+            detalle.FechaFin = updateFechaDto.NewFecha;
+            await _db.SaveChangesAsync();
+
+            return Ok(new { Message = "Fecha de fin actualizada exitosamente." });
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, $"Error interno del servidor: {ex.Message}");
+        }
+    }
+
 
     // Eliminar un item del carrito
     [HttpDelete("remove-item/{detalleId}")]

@@ -16,6 +16,17 @@ public partial class MyDbContext : DbContext
     {
     }
 
+    protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
+    {
+        if (!optionsBuilder.IsConfigured)
+        {
+            // Add any default connection here if needed
+        }
+        
+        // Configure PostgreSQL to handle DateTime conversion properly
+        AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
+    }
+
     public virtual DbSet<Ciudade> Ciudades { get; set; }
 
     public virtual DbSet<Empleado> Empleados { get; set; }
