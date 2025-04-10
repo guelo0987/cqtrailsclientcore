@@ -71,6 +71,58 @@ public class ReservacionesController : ControllerBase
         return Ok(reservacionesDTO);
     }
     
+    [HttpGet("Detalle/{userId}/{id}")]
+public async Task<IActionResult> GetReservacionDetalle(int userId, int id)
+{
+    // Buscar la reservación que cumpla con el id de la reservación y que pertenezca al usuario indicado
+    var reservacion = await _db.Reservaciones
+        .Include(r => r.IdUsuarioNavigation)
+        .Include(r => r.VehiculosReservaciones)
+            .ThenInclude(vr => vr.IdVehiculoNavigation)
+        .FirstOrDefaultAsync(r => r.IdReservacion == id && r.IdUsuario == userId);
+
+    if (reservacion == null)
+    {
+        return NotFound("Reservación no encontrada para el usuario especificado");
+    }
+
+    // Mapear la entidad a DTO para evitar exponer datos sensibles o internos
+    var reservacionDTO = new ReservacioneDTO
+    {
+        IdReservacion = reservacion.IdReservacion,
+        IdUsuario = reservacion.IdUsuario,
+        FechaInicio = reservacion.FechaInicio,
+        FechaFin = reservacion.FechaFin,
+        RutaPersonalizada = reservacion.RutaPersonalizada,
+        RequerimientosAdicionales = reservacion.RequerimientosAdicionales,
+        Estado = reservacion.Estado,
+        FechaReservacion = reservacion.FechaReservacion,
+        FechaConfirmacion = reservacion.FechaConfirmacion,
+        Total = reservacion.Total,
+        SubTotal = reservacion.SubTotal,
+        Usuario = reservacion.IdUsuarioNavigation != null ? new UsuarioBasicoDTO
+        {
+            IdUsuario = reservacion.IdUsuarioNavigation.IdUsuario,
+            Nombre = reservacion.IdUsuarioNavigation.Nombre,
+            Apellido = reservacion.IdUsuarioNavigation.Apellido,
+            Email = reservacion.IdUsuarioNavigation.Email
+        } : null,
+        Vehiculos = reservacion.VehiculosReservaciones.Select(vr => new VehiculoReservacionDTO
+        {
+            IdVehiculo = vr.IdVehiculo,
+            Placa = vr.IdVehiculoNavigation.Placa,
+            Modelo = vr.IdVehiculoNavigation.Modelo,
+            TipoVehiculo = vr.IdVehiculoNavigation.TipoVehiculo,
+            Capacidad = vr.IdVehiculoNavigation.Capacidad,
+            Ano = vr.IdVehiculoNavigation.Ano,
+            EstadoAsignacion = vr.EstadoAsignacion
+        }).ToList()
+    };
+
+    return Ok(reservacionDTO);
+}
+
+    
     [HttpPost]
     public async Task<IActionResult> HacerReservacion([FromBody] int userId)
     {
