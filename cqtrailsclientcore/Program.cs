@@ -125,6 +125,9 @@ app.UseHttpsRedirection();
 app.UseAuthentication();
 app.UseAuthorization();
 
+// Añadir middleware para servir archivos estáticos desde wwwroot
+app.UseStaticFiles();
+
 app.MapControllers();
 
 app.MapGet("/", () => Results.Redirect("/swagger"));

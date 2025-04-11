@@ -1,6 +1,7 @@
 using cqtrailsclientcore.Context;
 using cqtrailsclientcore.DTO;
 using cqtrailsclientcore.Models;
+using cqtrailsclientcore.Utils;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -11,10 +12,12 @@ namespace cqtrailsclientcore.Controllers;
 public class PreFacturaController : ControllerBase
 {
     private readonly MyDbContext _db;
+    private readonly IWebHostEnvironment _webHostEnvironment;
 
-    public PreFacturaController(MyDbContext db)
+    public PreFacturaController(MyDbContext db, IWebHostEnvironment webHostEnvironment)
     {
         _db = db;
+        _webHostEnvironment = webHostEnvironment;
     }
 
     [HttpGet("Prefactura/{idreservacion}/{userid}")]
@@ -47,6 +50,24 @@ public class PreFacturaController : ControllerBase
         {
             // Mapear a DTO
             var prefacturaDTO = MapToPreFacturaDTO(prefacturaExistente);
+            
+            // Verificar si ya se generó el PDF
+            if (string.IsNullOrEmpty(prefacturaExistente.ArchivoPdf) || 
+                prefacturaExistente.ArchivoPdf == "prueba" || 
+                prefacturaExistente.ArchivoPdf == "pendiente")
+            {
+                // Generar el PDF si no existe
+                string rutaPdf = PdfGenerator.GenerarPrefacturaPDF(prefacturaDTO, _webHostEnvironment.WebRootPath);
+                
+                // Actualizar la ruta del PDF en la base de datos
+                prefacturaExistente.ArchivoPdf = rutaPdf;
+                _db.PreFacturas.Update(prefacturaExistente);
+                await _db.SaveChangesAsync();
+                
+                // Actualizar el DTO
+                prefacturaDTO.ArchivoPdf = rutaPdf;
+            }
+            
             return Ok(prefacturaDTO);
         }
 
@@ -56,7 +77,8 @@ public class PreFacturaController : ControllerBase
             IdReservacion = idreservacion,
             CostoVehiculo = reservacion.SubTotal,
             CostoTotal = reservacion.Total,
-            ArchivoPdf = "prueba"
+            FechaGeneracion = DateTime.Now,
+            ArchivoPdf = "pendiente" // Marcar como pendiente para generar PDF
         };
 
         try
@@ -79,6 +101,23 @@ public class PreFacturaController : ControllerBase
             if (prefacturaCreada != null)
             {
                 var prefacturaDTO = MapToPreFacturaDTO(prefacturaCreada);
+                
+                // Generar PDF si no existe
+                if (string.IsNullOrEmpty(prefacturaCreada.ArchivoPdf) || 
+                    prefacturaCreada.ArchivoPdf == "pendiente" || 
+                    prefacturaCreada.ArchivoPdf == "prueba")
+                {
+                    string rutaPdf = PdfGenerator.GenerarPrefacturaPDF(prefacturaDTO, _webHostEnvironment.WebRootPath);
+                    
+                    // Actualizar la ruta del PDF
+                    prefacturaCreada.ArchivoPdf = rutaPdf;
+                    _db.PreFacturas.Update(prefacturaCreada);
+                    await _db.SaveChangesAsync();
+                    
+                    // Actualizar el DTO
+                    prefacturaDTO.ArchivoPdf = rutaPdf;
+                }
+                
                 return Ok(prefacturaDTO);
             }
             
@@ -99,6 +138,18 @@ public class PreFacturaController : ControllerBase
         }
 
         var prefacturaActualizadaDTO = MapToPreFacturaDTO(prefacturaActualizada);
+        
+        // Generar el PDF para la nueva prefactura
+        string rutaPdfNueva = PdfGenerator.GenerarPrefacturaPDF(prefacturaActualizadaDTO, _webHostEnvironment.WebRootPath);
+        
+        // Actualizar la ruta del PDF en la base de datos
+        prefacturaActualizada.ArchivoPdf = rutaPdfNueva;
+        _db.PreFacturas.Update(prefacturaActualizada);
+        await _db.SaveChangesAsync();
+        
+        // Actualizar el DTO con la ruta del PDF
+        prefacturaActualizadaDTO.ArchivoPdf = rutaPdfNueva;
+        
         return Ok(prefacturaActualizadaDTO);
     }
 
