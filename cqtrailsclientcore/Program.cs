@@ -20,6 +20,13 @@ new EnvLoader().AddEnvFile("development.env").Load();
 builder.Services.AddDbContext<MyDbContext>(options =>
     options.UseNpgsql(Environment.GetEnvironmentVariable("DATA_BASE_CONNECTION_STRING")));
 
+// Registrar el servicio de Google Drive
+builder.Services.AddScoped<cqtrailsclientcore.Utils.GoogleDriveService>(provider => {
+    var webHostEnvironment = provider.GetRequiredService<IWebHostEnvironment>();
+    var logger = provider.GetRequiredService<ILogger<cqtrailsclientcore.Utils.GoogleDriveService>>();
+    return new cqtrailsclientcore.Utils.GoogleDriveService(webHostEnvironment.WebRootPath, logger);
+});
+
 
 
 

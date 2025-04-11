@@ -3,26 +3,68 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Globalization;
+using System.Threading.Tasks;
 using cqtrailsclientcore.DTO;
 using iTextSharp.text;
 using iTextSharp.text.pdf;
+using Microsoft.Extensions.Logging;
 
 namespace cqtrailsclientcore.Utils;
 
 public static class PdfGenerator
 {
-    public static string GenerarPrefacturaPDF(PreFacturaDTO dto, string webRootPath)
+    public static async Task<string> GenerarPrefacturaPDFAsync(
+        PreFacturaDTO dto, 
+        string webRootPath, 
+        GoogleDriveService googleDriveService,
+        ILogger logger)
     {
         // Se intentarán las dos formas de generar PDF
         try 
         {
             // Intentar con PDF desde cero primero
+            string localFilePath = GenerarPdfDesdeZero(dto, webRootPath);
+            
+            // Subir a Google Drive
+            string fileName = $"PreFactura_Custom_{dto.IdPreFactura}.pdf";
+            logger.LogInformation($"Subiendo archivo {fileName} a Google Drive...");
+            
+            // Subir a Google Drive y obtener URL
+            string googleDriveUrl = await googleDriveService.UploadFile(localFilePath, fileName);
+            logger.LogInformation($"Archivo subido exitosamente a Google Drive: {googleDriveUrl}");
+            
+            return googleDriveUrl;
+        }
+        catch (Exception ex)
+        {
+            logger.LogError($"Error al generar PDF desde cero: {ex.Message}");
+            
+            // Si falla, intentar con la plantilla
+            string localFilePath = GenerarPdfDesdeTemplate(dto, webRootPath);
+            
+            // Subir a Google Drive
+            string fileName = $"PreFactura_Template_{dto.IdPreFactura}.pdf";
+            logger.LogInformation($"Subiendo archivo alternativo {fileName} a Google Drive...");
+            
+            // Subir a Google Drive y obtener URL
+            string googleDriveUrl = await googleDriveService.UploadFile(localFilePath, fileName);
+            logger.LogInformation($"Archivo alternativo subido exitosamente a Google Drive: {googleDriveUrl}");
+            
+            return googleDriveUrl;
+        }
+    }
+    
+    // Método para compatibilidad con código existente
+    public static string GenerarPrefacturaPDF(PreFacturaDTO dto, string webRootPath)
+    {
+        // Generar PDF localmente (sin subirlo a Google Drive)
+        try 
+        {
             return GenerarPdfDesdeZero(dto, webRootPath);
         }
         catch (Exception ex)
         {
             Console.WriteLine($"Error al generar PDF desde cero: {ex.Message}");
-            // Si falla, intentar con la plantilla
             return GenerarPdfDesdeTemplate(dto, webRootPath);
         }
     }
@@ -133,8 +175,8 @@ public static class PdfGenerator
                 pdfStamper.FormFlattening = true;
             }
 
-            // Devolver la ruta relativa (para almacenar en BD)
-            return Path.Combine("prefacturas", fileName).Replace("\\", "/");
+            // Devolver la ruta completa del archivo
+            return outputPath;
         }
         catch (Exception ex)
         {
@@ -171,25 +213,48 @@ public static class PdfGenerator
                 documento.Open();
                 
                 // Cargar logo
-                string logoPath = Path.Combine(webRootPath, "images", "logo.png");
                 try 
                 {
-                    if (File.Exists(logoPath))
+                    // Intentar diferentes formatos de logo
+                    string[] possibleLogoExtensions = { "png", "jpg", "jpeg", "gif" };
+                    string logoPath = null;
+                    Image logo = null;
+                    
+                    foreach (var ext in possibleLogoExtensions)
                     {
-                        Image logo = Image.GetInstance(logoPath);
+                        try
+                        {
+                            string testPath = Path.Combine(webRootPath, "images", $"logo.{ext}");
+                            if (System.IO.File.Exists(testPath))
+                            {
+                                logoPath = testPath;
+                                logo = Image.GetInstance(testPath);
+                                break;
+                            }
+                        }
+                        catch (Exception) 
+                        {
+                            // Continuar con la siguiente extensión
+                        }
+                    }
+                    
+                    // Si se encontró un logo válido, usarlo
+                    if (logo != null)
+                    {
                         logo.ScaleToFit(150, 75);
                         logo.Alignment = Image.ALIGN_RIGHT;
                         documento.Add(logo);
+                        Console.WriteLine($"Logo cargado exitosamente: {logoPath}");
                     }
                     else 
                     {
-                        // Si no existe el logo, crear un texto como reemplazo
+                        // Crear logo de texto como respaldo
                         Paragraph logoText = new Paragraph("CQ TRAILS", 
                             new Font(Font.FontFamily.HELVETICA, 18, Font.BOLD, new BaseColor(0, 150, 0)));
                         logoText.Alignment = Element.ALIGN_RIGHT;
                         documento.Add(logoText);
                         
-                        Console.WriteLine($"Logo no encontrado en: {logoPath}");
+                        Console.WriteLine("No se encontró un logo válido, usando texto alternativo");
                     }
                 }
                 catch (Exception ex)
@@ -410,8 +475,8 @@ public static class PdfGenerator
                 documento.Close();
             }
             
-            // Devolver la ruta relativa
-            return Path.Combine("prefacturas", fileName).Replace("\\", "/");
+            // Devolver la ruta completa del archivo
+            return outputPath;
         }
         catch (Exception ex)
         {
