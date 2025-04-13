@@ -148,6 +148,44 @@ public async Task<IActionResult> Register([FromBody] UsuarioDTO registerRequest)
     return GenerateToken(claims, usuarioResponse, rol.NombreRol);
 }
 
+[HttpPut("update-user-and-empresa")]
+public async Task<IActionResult> UpdateUserAndEmpresa([FromBody] UpdateUserAndEmpresaDTO updateDto)
+{
+    // Buscar el usuario por su correo actual
+    var user = await _db.Usuarios.FirstOrDefaultAsync(u => u.Email == updateDto.CurrentEmail);
+    if (user == null)
+    {
+        return NotFound("Usuario no encontrado con el correo proporcionado.");
+    }
+
+    // Buscar la empresa asociada al correo actual del usuario
+    var empresa = await _db.Empresas.FirstOrDefaultAsync(e => e.ContactoEmail == updateDto.CurrentEmail);
+    if (empresa == null)
+    {
+        return NotFound("No se encontró una empresa asociada al usuario.");
+    }
+
+    // Actualizar la información del usuario
+    user.Nombre = updateDto.NewNombre;
+    user.Apellido = updateDto.NewApellido;
+    user.Email = updateDto.NewEmail;
+
+    // Actualizar la información de la empresa
+    empresa.Nombre = updateDto.NewEmpresaNombre ?? empresa.Nombre; // Solo actualizar si se proporciona un nuevo nombre
+    empresa.ContactoTelefono = updateDto.NewEmpresaTelefono ?? empresa.ContactoTelefono; // Solo actualizar si se proporciona un nuevo teléfono
+
+    // Actualizar el ContactoEmail de la empresa si el correo del usuario cambia
+    if (updateDto.CurrentEmail != updateDto.NewEmail)
+    {
+        empresa.ContactoEmail = updateDto.NewEmail;
+    }
+
+    // Guardar los cambios en la base de datos
+    await _db.SaveChangesAsync();
+
+    return Ok(new { Message = "Información del usuario y la empresa actualizada exitosamente." });
+}
+
 
 
 

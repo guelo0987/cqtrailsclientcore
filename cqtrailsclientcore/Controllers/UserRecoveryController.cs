@@ -42,6 +42,15 @@ public class UserRecoveryController : ControllerBase
         public bool Success { get; set; }
         public string Message { get; set; }
     }
+    
+    
+    
+    
+    // Update User Information
+    //PUT: api/UserInformation Update/update
+    [HttpPut("update")]
+    
+    
 
     // POST: api/UserRecovery/recover
     [HttpPost("recover")]
