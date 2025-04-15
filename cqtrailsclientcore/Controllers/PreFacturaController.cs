@@ -258,6 +258,8 @@ public class PreFacturaController : ControllerBase
                 FechaConfirmacion = reservacion.FechaConfirmacion,
                 Total = reservacion.Total,
                 SubTotal = reservacion.SubTotal,
+                CiudadInicioId = reservacion.ciudadinicioid,
+                CiudadFinId = reservacion.ciudadfinid,
                 Usuario = reservacion.IdUsuarioNavigation != null ? new UsuarioBasicoDTO
                 {
                     IdUsuario = reservacion.IdUsuarioNavigation.IdUsuario,

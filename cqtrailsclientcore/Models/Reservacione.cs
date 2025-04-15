@@ -31,11 +31,19 @@ public partial class Reservacione
     
     public int SubTotal { get; set; }
 
+    public int? ciudadinicioid { get; set; }
+    
+    public int? ciudadfinid { get; set; }
+
     public virtual Empleado? IdEmpleadoNavigation { get; set; }
 
     public virtual Empresa? IdEmpresaNavigation { get; set; }
 
     public virtual Usuario? IdUsuarioNavigation { get; set; }
+    
+    public virtual Ciudade? CiudadInicioNavigation { get; set; }
+    
+    public virtual Ciudade? CiudadFinNavigation { get; set; }
 
     public virtual ICollection<Notificacione> Notificaciones { get; set; } = new List<Notificacione>();
 

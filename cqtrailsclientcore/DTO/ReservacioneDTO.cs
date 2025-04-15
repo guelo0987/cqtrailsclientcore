@@ -13,6 +13,8 @@ public class ReservacioneDTO
     public DateTime? FechaConfirmacion { get; set; }
     public int Total { get; set; }
     public int SubTotal { get; set; }
+    public int? CiudadInicioId { get; set; }
+    public int? CiudadFinId { get; set; }
     
     // Información básica del usuario
     public UsuarioBasicoDTO? Usuario { get; set; }

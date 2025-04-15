@@ -32,6 +32,8 @@ public class ReservacionesController : ControllerBase
             .Include(o => o.IdUsuarioNavigation)
             .Include(o => o.VehiculosReservaciones)
                 .ThenInclude(vr => vr.IdVehiculoNavigation)
+            .Include(o => o.CiudadInicioNavigation)
+            .Include(o => o.CiudadFinNavigation)
             .Where(o => o.IdUsuario == userid)
             .ToListAsync();
 
@@ -49,6 +51,8 @@ public class ReservacionesController : ControllerBase
             FechaConfirmacion = r.FechaConfirmacion,
             Total = r.Total,
             SubTotal = r.SubTotal,
+            CiudadInicioId = r.ciudadinicioid,
+            CiudadFinId = r.ciudadfinid,
             Usuario = r.IdUsuarioNavigation != null ? new UsuarioBasicoDTO
             {
                 IdUsuario = r.IdUsuarioNavigation.IdUsuario,
@@ -79,6 +83,8 @@ public async Task<IActionResult> GetReservacionDetalle(int userId, int id)
         .Include(r => r.IdUsuarioNavigation)
         .Include(r => r.VehiculosReservaciones)
             .ThenInclude(vr => vr.IdVehiculoNavigation)
+        .Include(r => r.CiudadInicioNavigation)
+        .Include(r => r.CiudadFinNavigation)
         .FirstOrDefaultAsync(r => r.IdReservacion == id && r.IdUsuario == userId);
 
     if (reservacion == null)
@@ -100,6 +106,8 @@ public async Task<IActionResult> GetReservacionDetalle(int userId, int id)
         FechaConfirmacion = reservacion.FechaConfirmacion,
         Total = reservacion.Total,
         SubTotal = reservacion.SubTotal,
+        CiudadInicioId = reservacion.ciudadinicioid,
+        CiudadFinId = reservacion.ciudadfinid,
         Usuario = reservacion.IdUsuarioNavigation != null ? new UsuarioBasicoDTO
         {
             IdUsuario = reservacion.IdUsuarioNavigation.IdUsuario,
@@ -176,9 +184,8 @@ public async Task<IActionResult> GetReservacionDetalle(int userId, int id)
                 Estado = "Pendiente",
                 Total = total,
                 SubTotal = subTotal,
-                // Puedes agregar los IDs de ciudades si necesitas almacenarlos en la reservación
-                // CiudadOrigenId = detallesCarrito.First().CiudadInicioId,
-                // CiudadDestinoId = detallesCarrito.First().CiudadFinId
+                ciudadinicioid = detallesCarrito.First().CiudadInicioId,
+                ciudadfinid = detallesCarrito.First().CiudadFinId
             };
 
             _db.Reservaciones.Add(nuevaReservacion);
@@ -207,6 +214,8 @@ public async Task<IActionResult> GetReservacionDetalle(int userId, int id)
                 .Include(r => r.IdUsuarioNavigation)
                 .Include(r => r.VehiculosReservaciones)
                     .ThenInclude(vr => vr.IdVehiculoNavigation)
+                .Include(r => r.CiudadInicioNavigation)
+                .Include(r => r.CiudadFinNavigation)
                 .FirstOrDefaultAsync(r => r.IdReservacion == nuevaReservacion.IdReservacion);
 
             if (reservacionCreada == null)
@@ -227,6 +236,8 @@ public async Task<IActionResult> GetReservacionDetalle(int userId, int id)
                 FechaConfirmacion = reservacionCreada.FechaConfirmacion,
                 Total = reservacionCreada.Total,
                 SubTotal = reservacionCreada.SubTotal,
+                CiudadInicioId = reservacionCreada.ciudadinicioid,
+                CiudadFinId = reservacionCreada.ciudadfinid,
                 Usuario = reservacionCreada.IdUsuarioNavigation != null ? new UsuarioBasicoDTO
                 {
                     IdUsuario = reservacionCreada.IdUsuarioNavigation.IdUsuario,

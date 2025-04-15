@@ -188,6 +188,14 @@ public partial class MyDbContext : DbContext
             entity.HasOne(d => d.IdUsuarioNavigation).WithMany(p => p.Reservaciones)
                 .HasForeignKey(d => d.IdUsuario)
                 .HasConstraintName("Reservaciones_IdUsuario_fkey");
+                
+            entity.HasOne(d => d.CiudadInicioNavigation).WithMany()
+                .HasForeignKey(d => d.ciudadinicioid)
+                .HasConstraintName("fk_reservaciones_ciudadinicio");
+                
+            entity.HasOne(d => d.CiudadFinNavigation).WithMany()
+                .HasForeignKey(d => d.ciudadfinid)
+                .HasConstraintName("fk_reservaciones_ciudadfin");
         });
 
         modelBuilder.Entity<Role>(entity =>
