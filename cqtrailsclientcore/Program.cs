@@ -73,7 +73,7 @@ builder.Services.AddAuthentication(options =>
     })
     .AddJwtBearer(options =>
     {
-        options.RequireHttpsMetadata = true;  // Asegúrate de que RequireHttpsMetadata esté configurado correctamente
+        options.RequireHttpsMetadata = false;  // Disable HTTPS requirement for JWT authentication
         options.SaveToken = true;
         options.TokenValidationParameters = new TokenValidationParameters
         {
@@ -134,34 +134,28 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowReactApp",
         builder => builder
-            .WithOrigins("http://localhost:3000") // URL de tu app React
-            .AllowAnyMethod()     // Permite todos los métodos HTTP (GET, POST, PUT, DELETE, etc.)
+            .WithOrigins("http://localhost:3000", "https://cqtrailsclientcore-production.up.railway.app") 
+            .AllowAnyMethod()
             .AllowAnyHeader()
             .AllowCredentials());
 });
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
-if (app.Environment.IsDevelopment())
+// Configure Swagger for both development and production
+app.UseSwagger();
+app.UseSwaggerUI(c => 
 {
-    app.UseSwagger();
-    app.UseSwaggerUI(c => 
-    {
-        c.SwaggerEndpoint("/swagger/v1/swagger.json", "GIGANTE CLIENTES API v1");
-        c.ConfigObject.DisplayRequestDuration = true;
-        c.RoutePrefix = "swagger"; // Esto es importante
-    });
-}
+    c.SwaggerEndpoint("/swagger/v1/swagger.json", "CQTRAILS API v1");
+    c.ConfigObject.DisplayRequestDuration = true;
+    c.RoutePrefix = "swagger";
+});
 
 app.UseRouting();
 app.UseCors("AllowReactApp");
 
-// Condicionar HTTPS redirection solo en ambiente de desarrollo
-if (app.Environment.IsDevelopment())
-{
-    app.UseHttpsRedirection();
-}
+// HTTPS redirection disabled for Railway deployment
+// app.UseHttpsRedirection();
 
 app.UseAuthentication();
 app.UseAuthorization();
