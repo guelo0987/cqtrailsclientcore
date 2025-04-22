@@ -39,4 +39,5 @@ public class VehiculoBasicoDTO
     public int Capacidad { get; set; }
     public int Ano { get; set; }
     public int Price { get; set; }
+    public string? ImageUrl { get; set; }
 } 

@@ -68,7 +68,8 @@ public class ReservacionesController : ControllerBase
                 TipoVehiculo = vr.IdVehiculoNavigation.TipoVehiculo,
                 Capacidad = vr.IdVehiculoNavigation.Capacidad,
                 Ano = vr.IdVehiculoNavigation.Ano,
-                EstadoAsignacion = vr.EstadoAsignacion
+                EstadoAsignacion = vr.EstadoAsignacion,
+                ImageUrl = vr.IdVehiculoNavigation.Image_url
             }).ToList()
         }).ToList();
 
@@ -123,7 +124,8 @@ public async Task<IActionResult> GetReservacionDetalle(int userId, int id)
             TipoVehiculo = vr.IdVehiculoNavigation.TipoVehiculo,
             Capacidad = vr.IdVehiculoNavigation.Capacidad,
             Ano = vr.IdVehiculoNavigation.Ano,
-            EstadoAsignacion = vr.EstadoAsignacion
+            EstadoAsignacion = vr.EstadoAsignacion,
+            ImageUrl = vr.IdVehiculoNavigation.Image_url
         }).ToList()
     };
 
@@ -253,7 +255,8 @@ public async Task<IActionResult> GetReservacionDetalle(int userId, int id)
                     TipoVehiculo = vr.IdVehiculoNavigation.TipoVehiculo,
                     Capacidad = vr.IdVehiculoNavigation.Capacidad,
                     Ano = vr.IdVehiculoNavigation.Ano,
-                    EstadoAsignacion = vr.EstadoAsignacion
+                    EstadoAsignacion = vr.EstadoAsignacion,
+                    ImageUrl = vr.IdVehiculoNavigation.Image_url
                 }).ToList()
             };
 

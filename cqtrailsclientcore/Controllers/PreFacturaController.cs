@@ -275,7 +275,8 @@ public class PreFacturaController : ControllerBase
                     TipoVehiculo = vr.IdVehiculoNavigation.TipoVehiculo,
                     Capacidad = vr.IdVehiculoNavigation.Capacidad,
                     Ano = vr.IdVehiculoNavigation.Ano,
-                    EstadoAsignacion = vr.EstadoAsignacion
+                    EstadoAsignacion = vr.EstadoAsignacion,
+                    ImageUrl = vr.IdVehiculoNavigation.Image_url
                 }).ToList()
             } : null
         };

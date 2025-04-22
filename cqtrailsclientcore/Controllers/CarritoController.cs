@@ -108,7 +108,8 @@ public class CarritoController:ControllerBase
                 TipoVehiculo = d.Vehiculo.TipoVehiculo,
                 Capacidad = d.Vehiculo.Capacidad,
                 Ano = d.Vehiculo.Ano,
-                Price = d.Vehiculo.Price
+                Price = d.Vehiculo.Price,
+                ImageUrl = d.Vehiculo.Image_url
             },
             CiudadInicio = d.CiudadInicio != null ? new CiudadDTO
             {

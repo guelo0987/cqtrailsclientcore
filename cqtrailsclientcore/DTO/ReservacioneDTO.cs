@@ -40,4 +40,5 @@ public class VehiculoReservacionDTO
     public int Capacidad { get; set; }
     public int Ano { get; set; }
     public string? EstadoAsignacion { get; set; }
+    public string? ImageUrl { get; set; }
 }
