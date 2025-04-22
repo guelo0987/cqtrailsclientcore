@@ -46,6 +46,13 @@ public class PreFacturaController : ControllerBase
 
         if (reservacion.Estado != "Aceptada")
             return BadRequest("La reservación no está aprobada");
+            
+        // Log vehicle information
+        _logger.LogInformation($"Reservación {idreservacion} con {reservacion.VehiculosReservaciones.Count} vehículos encontrados");
+        foreach (var vr in reservacion.VehiculosReservaciones)
+        {
+            _logger.LogInformation($"Vehículo en reservación: ID:{vr.IdVehiculo}, Placa:{vr.IdVehiculoNavigation?.Placa}");
+        }
 
         // Verificar si ya existe una prefactura
         var prefacturaExistente = await _db.PreFacturas
@@ -57,8 +64,21 @@ public class PreFacturaController : ControllerBase
 
         if (prefacturaExistente != null)
         {
+            // Log vehicle information in existing prefactura
+            _logger.LogInformation($"Prefactura existente {prefacturaExistente.IdPreFactura} con {prefacturaExistente.IdReservacionNavigation.VehiculosReservaciones.Count} vehículos");
+            
             // Mapear a DTO
             var prefacturaDTO = MapToPreFacturaDTO(prefacturaExistente);
+            
+            // Log vehicle info in DTO
+            if (prefacturaDTO.Reservacion?.Vehiculos != null)
+            {
+                _logger.LogInformation($"Vehículos en DTO: {prefacturaDTO.Reservacion.Vehiculos.Count}");
+            }
+            else
+            {
+                _logger.LogWarning("No hay vehículos en el DTO de la prefactura");
+            }
             
             // Verificar si ya se generó el PDF o si es necesario actualizar a Google Drive
             bool needsGoogleDriveUrl = string.IsNullOrEmpty(prefacturaExistente.ArchivoPdf) || 
@@ -87,40 +107,95 @@ public class PreFacturaController : ControllerBase
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError($"Error al generar PDF y subir a Google Drive: {ex.Message}");
-                    // Si falla Google Drive, intentar generar solo el PDF local
-                    string rutaPdf = PdfGenerator.GenerarPrefacturaPDF(prefacturaDTO, _webHostEnvironment.WebRootPath);
-                    prefacturaExistente.ArchivoPdf = rutaPdf;
-                    _db.PreFacturas.Update(prefacturaExistente);
-                    await _db.SaveChangesAsync();
-                    prefacturaDTO.ArchivoPdf = rutaPdf;
-                    
-                    // Regresar advertencia pero continuar
-                    return Ok(new 
-                    { 
-                        Prefactura = prefacturaDTO, 
-                        Warning = "Se generó el PDF localmente pero no se pudo subir a Google Drive" 
-                    });
+                    _logger.LogError($"Error al generar PDF: {ex.Message}");
+                    return StatusCode(500, $"Error al generar PDF: {ex.Message}");
                 }
             }
             
             return Ok(prefacturaDTO);
         }
 
-        // Crear nueva prefactura si no existe
+        // Crear una nueva prefactura
+        
+        // Calcular coste
+        var costoVehiculo = CalcularCostoVehiculo(reservacion);
+        decimal? costoAdicional = null;
+        if (!string.IsNullOrEmpty(reservacion.RequerimientosAdicionales))
+        {
+            costoAdicional = 50;
+        }
+
+        var total = costoVehiculo + (costoAdicional ?? 0);
+
         var nuevaPrefactura = new PreFactura
         {
             IdReservacion = idreservacion,
-            CostoVehiculo = reservacion.SubTotal,
-            CostoTotal = reservacion.Total,
+            CostoVehiculo = costoVehiculo,
+            CostoAdicional = costoAdicional,
+            CostoTotal = total,
             FechaGeneracion = DateTime.Now,
-            ArchivoPdf = "pendiente" // Marcar como pendiente para generar PDF
+            ArchivoPdf = "pendiente" // Pendiente de generar
         };
 
         try
         {
             _db.PreFacturas.Add(nuevaPrefactura);
             await _db.SaveChangesAsync();
+            
+            // Recargar la prefactura con todos los datos relacionados
+            _db.Entry(nuevaPrefactura).State = EntityState.Detached;
+            
+            var prefacturaCompleta = await _db.PreFacturas
+                .Include(p => p.IdReservacionNavigation)
+                    .ThenInclude(r => r.IdUsuarioNavigation)
+                .Include(p => p.IdReservacionNavigation.VehiculosReservaciones)
+                    .ThenInclude(vr => vr.IdVehiculoNavigation)
+                .FirstOrDefaultAsync(p => p.IdPreFactura == nuevaPrefactura.IdPreFactura);
+            
+            if (prefacturaCompleta == null)
+            {
+                return StatusCode(500, "Error al recargar la prefactura");
+            }
+            
+            // Log vehicle information in new prefactura
+            _logger.LogInformation($"Nueva prefactura {prefacturaCompleta.IdPreFactura} con {prefacturaCompleta.IdReservacionNavigation.VehiculosReservaciones.Count} vehículos");
+            
+            var prefacturaDTO = MapToPreFacturaDTO(prefacturaCompleta);
+            
+            // Log vehicle info in DTO
+            if (prefacturaDTO.Reservacion?.Vehiculos != null)
+            {
+                _logger.LogInformation($"Vehículos en DTO de nueva prefactura: {prefacturaDTO.Reservacion.Vehiculos.Count}");
+                foreach (var v in prefacturaDTO.Reservacion.Vehiculos)
+                {
+                    _logger.LogInformation($"Vehículo mapeado: ID:{v.IdVehiculo}, Placa:{v.Placa}, Modelo:{v.Modelo}");
+                }
+            }
+            
+            // Generar PDF y subir a Google Drive
+            try
+            {
+                string googleDriveUrl = await PdfGenerator.GenerarPrefacturaPDFAsync(
+                    prefacturaDTO, 
+                    _webHostEnvironment.WebRootPath, 
+                    _googleDriveService,
+                    _logger);
+                
+                // Actualizar la ruta del PDF con la URL de Google Drive
+                prefacturaCompleta.ArchivoPdf = googleDriveUrl;
+                _db.PreFacturas.Update(prefacturaCompleta);
+                await _db.SaveChangesAsync();
+                
+                // Actualizar el DTO
+                prefacturaDTO.ArchivoPdf = googleDriveUrl;
+                
+                return Ok(prefacturaDTO);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"Error al generar PDF: {ex.Message}");
+                return StatusCode(500, $"Error al generar PDF: {ex.Message}");
+            }
         }
         catch (DbUpdateException ex)
         {
@@ -136,7 +211,16 @@ public class PreFacturaController : ControllerBase
             
             if (prefacturaCreada != null)
             {
+                // Log vehicle information in concurrent prefactura
+                _logger.LogInformation($"Prefactura concurrente {prefacturaCreada.IdPreFactura} con {prefacturaCreada.IdReservacionNavigation.VehiculosReservaciones.Count} vehículos");
+                
                 var prefacturaDTO = MapToPreFacturaDTO(prefacturaCreada);
+                
+                // Log vehicle info in DTO
+                if (prefacturaDTO.Reservacion?.Vehiculos != null)
+                {
+                    _logger.LogInformation($"Vehículos en DTO de prefactura concurrente: {prefacturaDTO.Reservacion.Vehiculos.Count}");
+                }
                 
                 // Generar PDF y subir a Google Drive
                 try 
@@ -157,86 +241,63 @@ public class PreFacturaController : ControllerBase
                 }
                 catch (Exception ex2)
                 {
-                    _logger.LogError($"Error al generar PDF y subir a Google Drive: {ex2.Message}");
-                    // Si falla Google Drive, intentar generar solo el PDF local
-                    string rutaPdf = PdfGenerator.GenerarPrefacturaPDF(prefacturaDTO, _webHostEnvironment.WebRootPath);
-                    prefacturaCreada.ArchivoPdf = rutaPdf;
-                    _db.PreFacturas.Update(prefacturaCreada);
-                    await _db.SaveChangesAsync();
-                    prefacturaDTO.ArchivoPdf = rutaPdf;
-                    
-                    // Regresar advertencia pero continuar
-                    return Ok(new 
-                    { 
-                        Prefactura = prefacturaDTO, 
-                        Warning = "Se generó el PDF localmente pero no se pudo subir a Google Drive" 
-                    });
+                    _logger.LogError($"Error al generar PDF: {ex2.Message}");
+                    return StatusCode(500, $"Error al generar PDF: {ex2.Message}");
                 }
                 
                 return Ok(prefacturaDTO);
             }
             
-            return StatusCode(500, "Error al generar la prefactura");
-        }
-
-        // Recargar la entidad con las relaciones
-        var prefacturaActualizada = await _db.PreFacturas
-            .Include(p => p.IdReservacionNavigation)
-                .ThenInclude(r => r.IdUsuarioNavigation)
-            .Include(p => p.IdReservacionNavigation.VehiculosReservaciones)
-                .ThenInclude(vr => vr.IdVehiculoNavigation)
-            .FirstOrDefaultAsync(p => p.IdReservacion == idreservacion);
-
-        if (prefacturaActualizada == null)
-        {
-            return StatusCode(500, "Error al recuperar la prefactura creada");
-        }
-
-        var prefacturaActualizadaDTO = MapToPreFacturaDTO(prefacturaActualizada);
-        
-        // Generar el PDF para la nueva prefactura y subirlo a Google Drive
-        try
-        {
-            string googleDriveUrl = await PdfGenerator.GenerarPrefacturaPDFAsync(
-                prefacturaActualizadaDTO, 
-                _webHostEnvironment.WebRootPath, 
-                _googleDriveService,
-                _logger);
-            
-            // Actualizar la ruta del PDF en la base de datos
-            prefacturaActualizada.ArchivoPdf = googleDriveUrl;
-            _db.PreFacturas.Update(prefacturaActualizada);
-            await _db.SaveChangesAsync();
-            
-            // Actualizar el DTO con la URL de Google Drive
-            prefacturaActualizadaDTO.ArchivoPdf = googleDriveUrl;
+            return StatusCode(500, $"Error al crear prefactura: {ex.Message}");
         }
         catch (Exception ex)
         {
-            _logger.LogError($"Error al generar PDF y subir a Google Drive: {ex.Message}");
-            // Si falla Google Drive, intentar generar solo el PDF local
-            string rutaPdf = PdfGenerator.GenerarPrefacturaPDF(prefacturaActualizadaDTO, _webHostEnvironment.WebRootPath);
-            prefacturaActualizada.ArchivoPdf = rutaPdf;
-            _db.PreFacturas.Update(prefacturaActualizada);
-            await _db.SaveChangesAsync();
-            prefacturaActualizadaDTO.ArchivoPdf = rutaPdf;
-            
-            // Regresar advertencia pero continuar
-            return Ok(new 
-            { 
-                Prefactura = prefacturaActualizadaDTO, 
-                Warning = "Se generó el PDF localmente pero no se pudo subir a Google Drive" 
-            });
+            return StatusCode(500, $"Error al crear prefactura: {ex.Message}");
         }
-        
-        return Ok(prefacturaActualizadaDTO);
     }
 
+    // Método para calcular el costo de los vehículos en una reservación
+    private decimal CalcularCostoVehiculo(Reservacione reservacion)
+    {
+        decimal costo = 0;
+        int diasReservacion = (int)(reservacion.FechaFin - reservacion.FechaInicio).TotalDays;
+        if (diasReservacion < 1) diasReservacion = 1;
+        
+        // Sumar el precio de cada vehículo
+        foreach (var vehiculoReservacion in reservacion.VehiculosReservaciones)
+        {
+            var vehiculo = vehiculoReservacion.IdVehiculoNavigation;
+            if (vehiculo != null)
+            {
+                costo += vehiculo.Price * diasReservacion;
+            }
+        }
+        
+        return costo;
+    }
+
+    // Método privado para mapear de entidad a DTO
     private PreFacturaDTO MapToPreFacturaDTO(PreFactura prefactura)
     {
         var reservacion = prefactura.IdReservacionNavigation;
         
-        return new PreFacturaDTO
+        // Log detailed mapping info
+        _logger.LogInformation($"Mapeando prefactura {prefactura.IdPreFactura} para reservación {prefactura.IdReservacion}");
+        
+        if (reservacion?.VehiculosReservaciones != null)
+        {
+            _logger.LogInformation($"Mapeando {reservacion.VehiculosReservaciones.Count} vehículos");
+            foreach (var vr in reservacion.VehiculosReservaciones)
+            {
+                _logger.LogInformation($"Mapeando vehículo: ID:{vr.IdVehiculo}, Placa:{vr.IdVehiculoNavigation?.Placa}");
+            }
+        }
+        else
+        {
+            _logger.LogWarning("No hay vehículos para mapear o la reservación es nula");
+        }
+        
+        var result = new PreFacturaDTO
         {
             IdPreFactura = prefactura.IdPreFactura,
             IdReservacion = prefactura.IdReservacion,
@@ -280,5 +341,17 @@ public class PreFacturaController : ControllerBase
                 }).ToList()
             } : null
         };
+        
+        // Log result
+        if (result.Reservacion?.Vehiculos != null)
+        {
+            _logger.LogInformation($"DTO generado con {result.Reservacion.Vehiculos.Count} vehículos");
+        }
+        else
+        {
+            _logger.LogWarning("DTO generado sin vehículos");
+        }
+        
+        return result;
     }
 }

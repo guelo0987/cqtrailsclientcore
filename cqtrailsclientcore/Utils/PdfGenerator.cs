@@ -26,6 +26,20 @@ public static class PdfGenerator
     {
         try 
         {
+            // Log debug info about vehicles
+            if (dto.Reservacion?.Vehiculos != null)
+            {
+                logger.LogInformation($"Vehículos encontrados: {dto.Reservacion.Vehiculos.Count}");
+                foreach (var vehiculo in dto.Reservacion.Vehiculos)
+                {
+                    logger.LogInformation($"Vehículo: {vehiculo.Placa} - {vehiculo.Modelo}");
+                }
+            }
+            else
+            {
+                logger.LogWarning("No se encontraron vehículos en la reservación.");
+            }
+            
             // Generar PDF localmente
             string localFilePath = GenerarPdfDesdeZero(dto, webRootPath);
             
@@ -155,6 +169,68 @@ public static class PdfGenerator
                     document.Add(new Paragraph(" "));
                 }
                 
+                // Verificación explícita de vehículos
+                Console.WriteLine($"Generando PDF para prefactura {dto.IdPreFactura}");
+                if (dto.Reservacion != null)
+                {
+                    Console.WriteLine($"Reservación: {dto.Reservacion.IdReservacion}");
+                    if (dto.Reservacion.Vehiculos != null)
+                    {
+                        Console.WriteLine($"Vehículos encontrados: {dto.Reservacion.Vehiculos.Count}");
+                    }
+                    else
+                    {
+                        Console.WriteLine("Vehículos es NULL");
+                    }
+                }
+                
+                // Agregar detalles de vehículos
+                if (dto.Reservacion?.Vehiculos != null && dto.Reservacion.Vehiculos.Any())
+                {
+                    // Título para la sección de vehículos
+                    Paragraph tituloVehiculos = new Paragraph("DETALLES DE VEHÍCULOS")
+                        .SetFontSize(14)
+                        .SetBold()
+                        .SetTextAlignment(TextAlignment.LEFT);
+                    document.Add(tituloVehiculos);
+                    document.Add(new Paragraph(" "));
+                    
+                    // Crear tabla para detalles de vehículos
+                    Table vehiculosTabla = new Table(UnitValue.CreatePercentArray(new float[] { 1, 2, 2, 1, 1, 1 }))
+                        .SetWidth(UnitValue.CreatePercentValue(100));
+                    
+                    // Encabezados de tabla
+                    Cell headerPlaca = CreateHeaderCell("Placa");
+                    Cell headerModelo = CreateHeaderCell("Modelo");
+                    Cell headerTipo = CreateHeaderCell("Tipo");
+                    Cell headerCapacidad = CreateHeaderCell("Capacidad");
+                    Cell headerAno = CreateHeaderCell("Año");
+                    Cell headerEstado = CreateHeaderCell("Estado");
+                    
+                    vehiculosTabla.AddHeaderCell(headerPlaca);
+                    vehiculosTabla.AddHeaderCell(headerModelo);
+                    vehiculosTabla.AddHeaderCell(headerTipo);
+                    vehiculosTabla.AddHeaderCell(headerCapacidad);
+                    vehiculosTabla.AddHeaderCell(headerAno);
+                    vehiculosTabla.AddHeaderCell(headerEstado);
+                    
+                    // Agregar filas para cada vehículo
+                    foreach (var vehiculo in dto.Reservacion.Vehiculos)
+                    {
+                        Console.WriteLine($"Agregando vehículo al PDF: {vehiculo.Placa} - {vehiculo.Modelo}");
+                        
+                        AddTableCellSimple(vehiculosTabla, vehiculo.Placa ?? "N/A");
+                        AddTableCellSimple(vehiculosTabla, vehiculo.Modelo ?? "N/A");
+                        AddTableCellSimple(vehiculosTabla, vehiculo.TipoVehiculo ?? "N/A");
+                        AddTableCellSimple(vehiculosTabla, vehiculo.Capacidad.ToString());
+                        AddTableCellSimple(vehiculosTabla, vehiculo.Ano.ToString());
+                        AddTableCellSimple(vehiculosTabla, vehiculo.EstadoAsignacion ?? "Activo");
+                    }
+                    
+                    document.Add(vehiculosTabla);
+                    document.Add(new Paragraph(" "));
+                }
+                
                 // Información de costos
                 decimal subtotal = dto.CostoVehiculo;
                 decimal costoAdicional = dto.CostoAdicional ?? 0;
@@ -168,6 +244,10 @@ public static class PdfGenerator
                     .SetHorizontalAlignment(HorizontalAlignment.RIGHT);
                 
                 AddTableCellBold(totalesTabla, "Subtotal:", subtotalConAdicionales.ToString("C"));
+                if (costoAdicional > 0)
+                {
+                    AddTableCellBold(totalesTabla, "Costo Adicional:", costoAdicional.ToString("C"));
+                }
                 AddTableCellBold(totalesTabla, "IVA (18%):", iva.ToString("C"));
                 
                 // Celda de total
@@ -215,6 +295,25 @@ public static class PdfGenerator
     }
     
     // Métodos auxiliares para la creación de PDF
+    private static Cell CreateHeaderCell(string text)
+    {
+        return new Cell()
+            .Add(new Paragraph(text).SetBold().SetFontSize(10))
+            .SetBackgroundColor(new DeviceRgb(220, 220, 220))
+            .SetTextAlignment(TextAlignment.CENTER)
+            .SetPadding(5);
+    }
+    
+    private static void AddTableCellSimple(Table table, string value)
+    {
+        Cell cell = new Cell()
+            .Add(new Paragraph(value).SetFontSize(9))
+            .SetPadding(5)
+            .SetTextAlignment(TextAlignment.CENTER);
+        
+        table.AddCell(cell);
+    }
+    
     private static void AddTableCell(Table table, string label, string value)
     {
         Cell labelCell = new Cell()
