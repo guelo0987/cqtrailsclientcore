@@ -55,7 +55,8 @@ builder.Services.AddScoped<cqtrailsclientcore.Utils.GoogleDriveService>(provider
     return new cqtrailsclientcore.Utils.GoogleDriveService(webHostEnvironment.WebRootPath, logger);
 });
 
-
+// Add health checks
+builder.Services.AddHealthChecks();
 
 
 // ADD CONTROLLERS
@@ -155,12 +156,21 @@ if (app.Environment.IsDevelopment())
 
 app.UseRouting();
 app.UseCors("AllowReactApp");
-app.UseHttpsRedirection();
+
+// Condicionar HTTPS redirection solo en ambiente de desarrollo
+if (app.Environment.IsDevelopment())
+{
+    app.UseHttpsRedirection();
+}
+
 app.UseAuthentication();
 app.UseAuthorization();
 
 // Añadir middleware para servir archivos estáticos desde wwwroot
 app.UseStaticFiles();
+
+// Map health check endpoint for Railway
+app.MapHealthChecks("/health");
 
 app.MapControllers();
 
