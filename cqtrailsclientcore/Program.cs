@@ -12,9 +12,37 @@ AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Configuración de URL solo para entornos de despliegue como Railway
+// En desarrollo, usará los valores de launchSettings.json
+if (!builder.Environment.IsDevelopment())
+{
+    var port = Environment.GetEnvironmentVariable("PORT") ?? "8080";
+    Console.WriteLine($"Configurando para entorno de producción en puerto {port}");
+    builder.WebHost.UseUrls($"http://0.0.0.0:{port}");
+}
+else
+{
+    Console.WriteLine("Usando configuración de puerto de desarrollo desde launchSettings.json");
+}
 
 //ENV LOAD
-new EnvLoader().AddEnvFile("development.env").Load();
+try 
+{
+    if (File.Exists("development.env"))
+    {
+        new EnvLoader().AddEnvFile("development.env").Load();
+        Console.WriteLine("Environment file development.env loaded successfully");
+    }
+    else
+    {
+        Console.WriteLine("Environment file development.env not found, using environment variables from Railway");
+    }
+}
+catch (Exception ex)
+{
+    Console.WriteLine($"Warning: Failed to load environment file: {ex.Message}");
+    Console.WriteLine("Continuing with Railway environment variables");
+}
 
 //DBConnection
 builder.Services.AddDbContext<MyDbContext>(options =>
@@ -111,7 +139,6 @@ builder.Services.AddCors(options =>
             .AllowCredentials());
 });
 
-
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
@@ -138,9 +165,6 @@ app.UseStaticFiles();
 app.MapControllers();
 
 app.MapGet("/", () => Results.Redirect("/swagger"));
-
-
-
 
 app.Run();
 

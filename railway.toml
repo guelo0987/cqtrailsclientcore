@@ -1,8 +1,9 @@
 [build]
-builder = "nixpacks"
-buildCommand = "dotnet publish cqtrailsclientcore/cqtrailsclientcore.csproj -c Release -o out"
+builder = "dockerfile"
+dockerfilePath = "Dockerfile"
 
 [deploy]
-startCommand = "dotnet ./out/cqtrailsclientcore.dll"
 healthcheckPath = "/"
-healthcheckTimeout = 100 
+healthcheckTimeout = 100
+restartPolicyType = "on_failure"
+restartPolicyMaxRetries = 10 
