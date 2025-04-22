@@ -4,7 +4,6 @@ using System.Text;
 using cqtrailsclientcore.Context;
 using cqtrailsclientcore.DTO;
 using cqtrailsclientcore.Models;
-using Microsoft.AspNetCore.Identity.Data;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
