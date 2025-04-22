@@ -3,6 +3,6 @@ builder = "nixpacks"
 buildCommand = "dotnet publish cqtrailsclientcore/cqtrailsclientcore.csproj -c Release -o out"
 
 [deploy]
-startCommand = "./out/cqtrailsclientcore"
+startCommand = "dotnet ./out/cqtrailsclientcore.dll"
 healthcheckPath = "/"
 healthcheckTimeout = 100 
