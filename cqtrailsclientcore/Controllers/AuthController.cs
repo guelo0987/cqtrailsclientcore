@@ -4,6 +4,7 @@ using System.Text;
 using cqtrailsclientcore.Context;
 using cqtrailsclientcore.DTO;
 using cqtrailsclientcore.Models;
+using cqtrailsclientcore.Utils;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -40,7 +41,8 @@ public class AuthController:ControllerBase
             return NotFound("Usuario no Encontrado");
         }
 
-        if (loginRequest.password != client.PasswordHash)
+        // Verify password using PassHasher
+        if (!PassHasher.VerifyPassword(loginRequest.password, client.PasswordHash))
         {
             return Unauthorized("Credenciales Invalidas");
         }
@@ -90,13 +92,16 @@ public async Task<IActionResult> Register([FromBody] UsuarioDTO registerRequest)
         return StatusCode(500, "Error en la configuración del servidor");
     }
     
+    // Hash the password
+    string hashedPassword = PassHasher.HashPassword(registerRequest.PasswordHash);
+    
     // Crear y guardar el usuario
     var usuario = new Usuario()
     {
         Nombre = registerRequest.Nombre,
         Apellido = registerRequest.Apellido,
         Email = registerRequest.Email,
-        PasswordHash = registerRequest.PasswordHash, 
+        PasswordHash = hashedPassword, 
         IdRol = 1, // Verifica que el IdRol sea correcto o asigna el id de "Cliente"
         Activo = true
     };

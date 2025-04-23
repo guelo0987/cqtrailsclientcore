@@ -8,6 +8,7 @@ using cqtrailsclientcore.Utils;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace cqtrailsclientcore.Controllers;
 
@@ -16,10 +17,14 @@ namespace cqtrailsclientcore.Controllers;
 public class UserRecoveryController : ControllerBase
 {
     private readonly MyDbContext _db;
+    private readonly EmailService _emailService;
+    private readonly ILogger<UserRecoveryController> _logger;
 
-    public UserRecoveryController(MyDbContext db)
+    public UserRecoveryController(MyDbContext db, ILogger<UserRecoveryController> logger, EmailService emailService)
     {
         _db = db;
+        _logger = logger;
+        _emailService = emailService;
     }
 
     // DTO para solicitud de recuperación de contraseña
@@ -80,13 +85,24 @@ public class UserRecoveryController : ControllerBase
                 });
             }
 
-            // Aquí normalmente enviarías un correo con un token o enlace para restablecer la contraseña
-            // Por ahora, solo simulamos el proceso
-
-            // En una implementación real:
-            // 1. Generar un token único
-            // 2. Almacenar el token en la base de datos con una fecha de expiración
-            // 3. Enviar un correo con un enlace que incluya el token
+            // Generar una nueva contraseña temporal
+            string newPassword = PasswordGenerator.GenerateRandomPassword(12, true);
+            
+            // Hashear y guardar la nueva contraseña en la base de datos
+            user.PasswordHash = PassHasher.HashPassword(newPassword);
+            await _db.SaveChangesAsync();
+            
+            try
+            {
+                // Enviar correo con la nueva contraseña
+                await _emailService.SendPasswordResetEmailAsync(user.Email, newPassword);
+                _logger.LogInformation($"Password reset email sent to {user.Email}");
+            }
+            catch (Exception emailEx)
+            {
+                _logger.LogError($"Failed to send password reset email: {emailEx.Message}");
+                // Continuamos con la operación a pesar del error en el envío de correo
+            }
 
             return Ok(new RecoveryResponseDTO
             {
@@ -96,6 +112,7 @@ public class UserRecoveryController : ControllerBase
         }
         catch (Exception ex)
         {
+            _logger.LogError($"Password recovery error: {ex.Message}");
             return StatusCode(500, new RecoveryResponseDTO
             {
                 Success = false,
@@ -135,8 +152,7 @@ public class UserRecoveryController : ControllerBase
             }
 
             // Verificar la contraseña anterior
-            // Nota: En un sistema real, deberías usar hash para las contraseñas
-            if (user.PasswordHash != request.OldPassword)
+            if (!PassHasher.VerifyPassword(request.OldPassword, user.PasswordHash))
             {
                 return Unauthorized(new RecoveryResponseDTO
                 {
@@ -146,11 +162,7 @@ public class UserRecoveryController : ControllerBase
             }
 
             // Actualizar la contraseña
-            user.PasswordHash = request.NewPassword;
-            
-            // En un sistema real, deberías hashear la nueva contraseña:
-            // user.PasswordHash = PassHasher.HashPassword(request.NewPassword);
-
+            user.PasswordHash = PassHasher.HashPassword(request.NewPassword);
             await _db.SaveChangesAsync();
 
             return Ok(new RecoveryResponseDTO
@@ -161,6 +173,7 @@ public class UserRecoveryController : ControllerBase
         }
         catch (Exception ex)
         {
+            _logger.LogError($"Change password error: {ex.Message}");
             return StatusCode(500, new RecoveryResponseDTO
             {
                 Success = false,

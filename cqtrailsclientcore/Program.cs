@@ -1,5 +1,6 @@
 using System.Text;
 using cqtrailsclientcore.Context;
+using cqtrailsclientcore.Utils;
 using DotEnv.Core;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
@@ -54,6 +55,9 @@ builder.Services.AddScoped<cqtrailsclientcore.Utils.GoogleDriveService>(provider
     var logger = provider.GetRequiredService<ILogger<cqtrailsclientcore.Utils.GoogleDriveService>>();
     return new cqtrailsclientcore.Utils.GoogleDriveService(webHostEnvironment.WebRootPath, logger);
 });
+
+// Registrar el servicio de Email
+builder.Services.AddScoped<EmailService>();
 
 // Add health checks
 builder.Services.AddHealthChecks();
